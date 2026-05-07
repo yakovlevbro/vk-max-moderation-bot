@@ -13,5 +13,12 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql
 
+  bot:
+    build: .
+    env_file: .env
+    restart: always
+    depends_on:
+      - db
+
 volumes:
   pg_data:
