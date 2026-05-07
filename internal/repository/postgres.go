@@ -28,7 +28,7 @@ func NewPostgresDB(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	if err := db.AutoMigrate(&ChatSettings{}, &Mute{}, &LinkToken{}, &ChatAdmin{}, &UserState{}, &UserViolation{}, &ChatStats{}); err != nil {
+	if err := db.AutoMigrate(&ChatSettings{}, &Mute{}, &LinkToken{}, &ChatAdmin{}, &UserState{}, &UserViolation{}, &ChatStats{}, &BroadcastSelection{}); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 	return db, nil

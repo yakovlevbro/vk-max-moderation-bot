@@ -58,3 +58,9 @@ type ChatStats struct {
 	FileViolations  int64     `gorm:"default:0"`
 	MuteCount       int64     `gorm:"default:0"`
 }
+
+type BroadcastSelection struct {
+	UserID    int64     `gorm:"primaryKey;autoIncrement:false"`
+	ChatID    int64     `gorm:"primaryKey;autoIncrement:false"`
+	CreatedAt time.Time
+}

@@ -70,4 +70,14 @@ const (
 	MsgImportPartialSuccess      = "✅ Успешно добавлено слов: %d.\n⚠️ Пропущено строк (с ошибками/пробелами): %d."
 	MsgImportEmpty               = "⚠️ Не найдено валидных слов в файле."
 	MsgImportError               = "❌ Ошибка при чтении файла: %v"
+
+	BtnBroadcast                = "📢 Рассылка"
+	BtnBroadcastSelectAll       = "✅ Выбрать все"
+	BtnBroadcastClearAll        = "🗑 Снять выбор"
+	BtnBroadcastSend            = "📨 Написать рассылку (%d выбрано)"
+	MsgBroadcastSelectTitle     = "📢 Рассылка (страница %d/%d)\nВыберите чаты для отправки:"
+	MsgBroadcastPromptText      = "Введите текст рассылки для **%d** чатов:"
+	MsgBroadcastResult          = "✅ Рассылка завершена: отправлено **%d** из **%d** чатов."
+	MsgBroadcastEmptyText       = "⚠️ Текст рассылки не может быть пустым. Попробуйте ещё раз."
+	MsgBroadcastNoChatsSelected = "⚠️ Не выбрано ни одного чата. Выберите чаты для рассылки."
 )

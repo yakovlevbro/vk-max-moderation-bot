@@ -43,6 +43,10 @@ func (h *Handler) handlePrivateMessage(ctx context.Context, upd *schemes.Message
 			h.handleFileImport(ctx, upd.Message.Sender.UserId, state.ChatID, upd.Message.Body.RawAttachments)
 			return
 		}
+		if state.Action == "broadcast_text" {
+			h.handleBroadcastSend(ctx, upd.Message.Sender.UserId, text)
+			return
+		}
 		if text == "" {
 			h.sendText(ctx, upd.Message.Sender.UserId, messages.MsgOnlyTextSupported)
 			return
@@ -114,6 +118,7 @@ func (h *Handler) sendMainMenu(ctx context.Context, userID int64) {
 	kb := h.bot.Messages.NewKeyboardBuilder()
 	kb.AddRow().AddCallback(messages.BtnMyGroups, schemes.DEFAULT, "my_groups")
 	kb.AddRow().AddCallback(messages.BtnAddGroup, schemes.POSITIVE, "add_group")
+	kb.AddRow().AddCallback(messages.BtnBroadcast, schemes.DEFAULT, "broadcast_menu")
 
 	msg := maxbot.NewMessage()
 	msg.SetUser(userID)
@@ -260,6 +265,44 @@ func (h *Handler) sendTextWithBack(ctx context.Context, userID, chatID int64, te
 	if err := h.bot.Messages.Send(ctx, msg); err != nil {
 		h.logger.Error("Failed to send text message with back button", "error", err)
 	}
+}
+
+func (h *Handler) handleBroadcastSend(ctx context.Context, userID int64, text string) {
+	if err := h.userStateRepo.ClearState(userID); err != nil {
+		h.logger.Warn("Failed to clear state before broadcast send", "error", err)
+	}
+
+	if strings.TrimSpace(text) == "" {
+		h.sendText(ctx, userID, messages.MsgBroadcastEmptyText)
+		return
+	}
+
+	selections, err := h.svc.GetBroadcastSelections(ctx, userID)
+	if err != nil {
+		h.logger.Error("Failed to get selections for broadcast", "error", err)
+		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
+		return
+	}
+
+	if len(selections) == 0 {
+		h.sendText(ctx, userID, messages.MsgBroadcastNoChatsSelected)
+		h.sendMainMenu(ctx, userID)
+		return
+	}
+
+	sent, failed, err := h.svc.SendBroadcast(ctx, userID, selections, text)
+	if err != nil {
+		h.logger.Error("Broadcast failed", "error", err)
+		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
+		return
+	}
+
+	if err := h.svc.ClearBroadcastSelections(ctx, userID); err != nil {
+		h.logger.Warn("Failed to clear broadcast selections after send", "error", err)
+	}
+
+	h.sendText(ctx, userID, fmt.Sprintf(messages.MsgBroadcastResult, sent, sent+failed))
+	h.sendMainMenu(ctx, userID)
 }
 
 func parseWordsFile(scanner *bufio.Scanner) ([]string, int, error) {

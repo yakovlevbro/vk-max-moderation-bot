@@ -77,7 +77,7 @@ func TestModerationService_ToggleSetting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSettings := tt.setupMock()
-			svc := NewModerationService(logger, mockSettings, nil, nil, nil, nil, &MockViolationRepository{}, nil)
+			svc := NewModerationService(logger, mockSettings, nil, nil, nil, nil, &MockViolationRepository{}, nil, nil)
 
 			got, err := svc.ToggleSetting(context.Background(), tt.chatID, tt.setting)
 
@@ -163,7 +163,7 @@ func TestModerationService_LinkGroup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			linkRepo, adminRepo := tt.setupMocks()
-			svc := NewModerationService(logger, nil, adminRepo, linkRepo, nil, nil, &MockViolationRepository{}, nil)
+			svc := NewModerationService(logger, nil, adminRepo, linkRepo, nil, nil, &MockViolationRepository{}, nil, nil)
 
 			err := svc.LinkGroup(context.Background(), tt.token, tt.chatID, tt.userID)
 
@@ -238,7 +238,7 @@ func TestModerationService_AddBlockedWords(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSettings := tt.setupMock()
-			svc := NewModerationService(logger, mockSettings, nil, nil, nil, nil, &MockViolationRepository{}, nil)
+			svc := NewModerationService(logger, mockSettings, nil, nil, nil, nil, &MockViolationRepository{}, nil, nil)
 
 			err := svc.AddBlockedWords(context.Background(), tt.chatID, tt.newWords)
 			if (err != nil) != tt.wantErr {
@@ -295,7 +295,7 @@ func TestModerationService_UnmuteUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			adminRepo, muteRepo := tt.setupMocks()
-			svc := NewModerationService(logger, nil, adminRepo, nil, muteRepo, nil, &MockViolationRepository{}, nil)
+			svc := NewModerationService(logger, nil, adminRepo, nil, muteRepo, nil, &MockViolationRepository{}, nil, nil)
 
 			err := svc.UnmuteUser(context.Background(), tt.chatID, tt.adminID, tt.userID)
 
@@ -323,7 +323,7 @@ func TestModerationService_GetChatStats(t *testing.T) {
 		},
 	}
 
-	svc := NewModerationService(logger, nil, nil, nil, nil, nil, mockViolation, nil)
+	svc := NewModerationService(logger, nil, nil, nil, nil, nil, mockViolation, nil, nil)
 	stats, err := svc.GetChatStats(context.Background(), chatID)
 
 	if err != nil {

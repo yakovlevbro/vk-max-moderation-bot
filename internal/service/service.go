@@ -42,6 +42,11 @@ type Service interface {
 	ScheduleDeletion(ctx context.Context, chatID int64, messageID string, duration time.Duration) error
 	IsChatAdmin(ctx context.Context, chatID, userID int64) (bool, error)
 	IsChatOwner(ctx context.Context, chatID, userID int64) (bool, error)
+	SendBroadcast(ctx context.Context, userID int64, chatIDs []int64, text string) (int, int, error)
+	ToggleBroadcastSelection(ctx context.Context, userID, chatID int64) (bool, error)
+	GetBroadcastSelections(ctx context.Context, userID int64) ([]int64, error)
+	SelectAllChatsForBroadcast(ctx context.Context, userID int64) error
+	ClearBroadcastSelections(ctx context.Context, userID int64) error
 }
 
 type ModerationService struct {
@@ -52,6 +57,7 @@ type ModerationService struct {
 	muteRepo        repository.MuteRepository
 	tempMessageRepo repository.TemporaryMessageRepository
 	violationRepo   repository.ViolationRepository
+	broadcastRepo   repository.BroadcastSelectionRepository
 	pipeline        *pipeline.Manager
 	tracer          trace.Tracer
 	bot             *maxbot.Api
@@ -65,6 +71,7 @@ func NewModerationService(
 	muteRepo repository.MuteRepository,
 	tempMessageRepo repository.TemporaryMessageRepository,
 	violationRepo repository.ViolationRepository,
+	broadcastRepo repository.BroadcastSelectionRepository,
 	bot *maxbot.Api,
 ) Service {
 
@@ -84,6 +91,7 @@ func NewModerationService(
 		muteRepo:        muteRepo,
 		tempMessageRepo: tempMessageRepo,
 		violationRepo:   violationRepo,
+		broadcastRepo:   broadcastRepo,
 		pipeline:        pm,
 		tracer:          otel.Tracer("service"),
 		bot:             bot,
@@ -439,4 +447,71 @@ func (s *ModerationService) IsChatOwner(ctx context.Context, chatID, userID int6
 	}
 
 	return false, nil
+}
+
+func (s *ModerationService) SendBroadcast(ctx context.Context, userID int64, chatIDs []int64, text string) (int, int, error) {
+	_, span := s.tracer.Start(ctx, "SendBroadcast")
+	defer span.End()
+
+	managedChats, err := s.chatAdminRepo.GetManagedChats(userID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get managed chats: %w", err)
+	}
+
+	managed := make(map[int64]struct{}, len(managedChats))
+	for _, id := range managedChats {
+		managed[id] = struct{}{}
+	}
+
+	var sent, failed int
+	for _, chatID := range chatIDs {
+		if _, ok := managed[chatID]; !ok {
+			s.logger.Warn("Broadcast skipped: chat not managed by user", "chat_id", chatID, "user_id", userID)
+			failed++
+			continue
+		}
+		if s.bot == nil {
+			return 0, 0, fmt.Errorf("bot client not initialized in service")
+		}
+		msg := maxbot.NewMessage()
+		msg.SetChat(chatID)
+		msg.SetText(text)
+		msg.SetFormat("markdown")
+		if sendErr := s.bot.Messages.Send(ctx, msg); sendErr != nil {
+			s.logger.Error("Failed to send broadcast message", "chat_id", chatID, "error", sendErr)
+			failed++
+		} else {
+			sent++
+		}
+	}
+	return sent, failed, nil
+}
+
+func (s *ModerationService) ToggleBroadcastSelection(ctx context.Context, userID, chatID int64) (bool, error) {
+	_, span := s.tracer.Start(ctx, "ToggleBroadcastSelection")
+	defer span.End()
+	return s.broadcastRepo.Toggle(userID, chatID)
+}
+
+func (s *ModerationService) GetBroadcastSelections(ctx context.Context, userID int64) ([]int64, error) {
+	_, span := s.tracer.Start(ctx, "GetBroadcastSelections")
+	defer span.End()
+	return s.broadcastRepo.GetSelections(userID)
+}
+
+func (s *ModerationService) SelectAllChatsForBroadcast(ctx context.Context, userID int64) error {
+	_, span := s.tracer.Start(ctx, "SelectAllChatsForBroadcast")
+	defer span.End()
+
+	chats, err := s.chatAdminRepo.GetManagedChats(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get managed chats: %w", err)
+	}
+	return s.broadcastRepo.SelectAll(userID, chats)
+}
+
+func (s *ModerationService) ClearBroadcastSelections(ctx context.Context, userID int64) error {
+	_, span := s.tracer.Start(ctx, "ClearBroadcastSelections")
+	defer span.End()
+	return s.broadcastRepo.Clear(userID)
 }

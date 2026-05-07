@@ -93,6 +93,31 @@ func (h *CallbackHandler) Handle(ctx context.Context, upd *schemes.MessageCallba
 		if _, err := fmt.Sscanf(payload, "stats_%d", &groupID); err == nil {
 			h.handleViewStats(ctx, groupID, upd.Callback.User.UserId)
 		}
+	case payload == "broadcast_menu":
+		h.handleBroadcastMenu(ctx, upd.Callback.User.UserId, 1)
+	case strings.HasPrefix(payload, "broadcast_menu_"):
+		var page int
+		if _, err := fmt.Sscanf(payload, "broadcast_menu_%d", &page); err == nil {
+			h.handleBroadcastMenu(ctx, upd.Callback.User.UserId, page)
+		}
+	case strings.HasPrefix(payload, "broadcast_toggle_"):
+		var chatID int64
+		var page int
+		if _, err := fmt.Sscanf(payload, "broadcast_toggle_%d_%d", &chatID, &page); err == nil {
+			h.handleBroadcastToggle(ctx, upd.Callback.User.UserId, chatID, page)
+		}
+	case strings.HasPrefix(payload, "broadcast_select_all_"):
+		var page int
+		if _, err := fmt.Sscanf(payload, "broadcast_select_all_%d", &page); err == nil {
+			h.handleBroadcastSelectAll(ctx, upd.Callback.User.UserId, page)
+		}
+	case strings.HasPrefix(payload, "broadcast_clear_all_"):
+		var page int
+		if _, err := fmt.Sscanf(payload, "broadcast_clear_all_%d", &page); err == nil {
+			h.handleBroadcastClearAll(ctx, upd.Callback.User.UserId, page)
+		}
+	case payload == "broadcast_prompt":
+		h.handleBroadcastPrompt(ctx, upd.Callback.User.UserId)
 	default:
 		h.logger.Warn("Unknown callback payload", "payload", payload)
 	}
@@ -100,8 +125,9 @@ func (h *CallbackHandler) Handle(ctx context.Context, upd *schemes.MessageCallba
 
 func (h *CallbackHandler) sendMainMenu(ctx context.Context, userID int64) {
 	kb := h.bot.Messages.NewKeyboardBuilder()
-	kb.AddRow().AddCallback("Мои чаты", schemes.DEFAULT, "my_groups")
-	kb.AddRow().AddCallback("Добавить чат", schemes.POSITIVE, "add_group")
+	kb.AddRow().AddCallback(messages.BtnMyGroups, schemes.DEFAULT, "my_groups")
+	kb.AddRow().AddCallback(messages.BtnAddGroup, schemes.POSITIVE, "add_group")
+	kb.AddRow().AddCallback(messages.BtnBroadcast, schemes.DEFAULT, "broadcast_menu")
 
 	msg := maxbot.NewMessage()
 	msg.SetUser(userID)

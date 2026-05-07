@@ -71,8 +71,9 @@ func (a *App) Run(ctx context.Context) error {
 	userStateRepo := repository.NewUserStateRepository(db)
 	tempMessageRepo := repository.NewTemporaryMessageRepository(db)
 	violationRepo := repository.NewViolationRepository(db)
+	broadcastRepo := repository.NewBroadcastSelectionRepository(db)
 
-	svc := service.NewModerationService(a.logger, settingsRepo, chatAdminRepo, linkTokenRepo, muteRepo, tempMessageRepo, violationRepo, a.bot)
+	svc := service.NewModerationService(a.logger, settingsRepo, chatAdminRepo, linkTokenRepo, muteRepo, tempMessageRepo, violationRepo, broadcastRepo, a.bot)
 	svc.StartMetricsUpdater(ctx)
 	svc.StartCleanupTask(ctx, a.bot)
 	h := handler.NewHandler(a.logger, svc, a.bot, userStateRepo, a.cfg)

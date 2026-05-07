@@ -185,3 +185,38 @@ func (m *MockMuteRepository) CountActiveMutes() (int64, error) {
 	}
 	return 0, nil
 }
+
+type MockBroadcastSelectionRepository struct {
+	ToggleFunc        func(userID, chatID int64) (bool, error)
+	GetSelectionsFunc func(userID int64) ([]int64, error)
+	SelectAllFunc     func(userID int64, chatIDs []int64) error
+	ClearFunc         func(userID int64) error
+}
+
+func (m *MockBroadcastSelectionRepository) Toggle(userID, chatID int64) (bool, error) {
+	if m.ToggleFunc != nil {
+		return m.ToggleFunc(userID, chatID)
+	}
+	return false, nil
+}
+
+func (m *MockBroadcastSelectionRepository) GetSelections(userID int64) ([]int64, error) {
+	if m.GetSelectionsFunc != nil {
+		return m.GetSelectionsFunc(userID)
+	}
+	return nil, nil
+}
+
+func (m *MockBroadcastSelectionRepository) SelectAll(userID int64, chatIDs []int64) error {
+	if m.SelectAllFunc != nil {
+		return m.SelectAllFunc(userID, chatIDs)
+	}
+	return nil
+}
+
+func (m *MockBroadcastSelectionRepository) Clear(userID int64) error {
+	if m.ClearFunc != nil {
+		return m.ClearFunc(userID)
+	}
+	return nil
+}
