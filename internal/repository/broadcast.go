@@ -71,3 +71,40 @@ func (r *PostgresBroadcastSelectionRepository) Clear(userID int64) error {
 	}
 	return nil
 }
+
+type BroadcastDraftRepository interface {
+	Save(userID int64, text string) error
+	Get(userID int64) (string, error)
+	Delete(userID int64) error
+}
+
+type PostgresBroadcastDraftRepository struct {
+	db *gorm.DB
+}
+
+func NewBroadcastDraftRepository(db *gorm.DB) BroadcastDraftRepository {
+	return &PostgresBroadcastDraftRepository{db: db}
+}
+
+func (r *PostgresBroadcastDraftRepository) Save(userID int64, text string) error {
+	draft := BroadcastDraft{UserID: userID, Text: text, CreatedAt: time.Now()}
+	if err := r.db.Save(&draft).Error; err != nil {
+		return fmt.Errorf("failed to save broadcast draft: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresBroadcastDraftRepository) Get(userID int64) (string, error) {
+	var draft BroadcastDraft
+	if err := r.db.Where("user_id = ?", userID).First(&draft).Error; err != nil {
+		return "", fmt.Errorf("failed to get broadcast draft: %w", err)
+	}
+	return draft.Text, nil
+}
+
+func (r *PostgresBroadcastDraftRepository) Delete(userID int64) error {
+	if err := r.db.Where("user_id = ?", userID).Delete(&BroadcastDraft{}).Error; err != nil {
+		return fmt.Errorf("failed to delete broadcast draft: %w", err)
+	}
+	return nil
+}

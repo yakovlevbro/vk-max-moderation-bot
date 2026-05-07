@@ -47,20 +47,24 @@ type Service interface {
 	GetBroadcastSelections(ctx context.Context, userID int64) ([]int64, error)
 	SelectAllChatsForBroadcast(ctx context.Context, userID int64) error
 	ClearBroadcastSelections(ctx context.Context, userID int64) error
+	SaveBroadcastDraft(ctx context.Context, userID int64, text string) error
+	GetBroadcastDraft(ctx context.Context, userID int64) (string, error)
+	DeleteBroadcastDraft(ctx context.Context, userID int64) error
 }
 
 type ModerationService struct {
-	logger          *slog.Logger
-	settingsRepo    repository.SettingsRepository
-	chatAdminRepo   repository.ChatAdminRepository
-	linkTokenRepo   repository.LinkTokenRepository
-	muteRepo        repository.MuteRepository
-	tempMessageRepo repository.TemporaryMessageRepository
-	violationRepo   repository.ViolationRepository
-	broadcastRepo   repository.BroadcastSelectionRepository
-	pipeline        *pipeline.Manager
-	tracer          trace.Tracer
-	bot             *maxbot.Api
+	logger            *slog.Logger
+	settingsRepo      repository.SettingsRepository
+	chatAdminRepo     repository.ChatAdminRepository
+	linkTokenRepo     repository.LinkTokenRepository
+	muteRepo          repository.MuteRepository
+	tempMessageRepo   repository.TemporaryMessageRepository
+	violationRepo     repository.ViolationRepository
+	broadcastRepo     repository.BroadcastSelectionRepository
+	broadcastDraftRepo repository.BroadcastDraftRepository
+	pipeline          *pipeline.Manager
+	tracer            trace.Tracer
+	bot               *maxbot.Api
 }
 
 func NewModerationService(
@@ -72,6 +76,7 @@ func NewModerationService(
 	tempMessageRepo repository.TemporaryMessageRepository,
 	violationRepo repository.ViolationRepository,
 	broadcastRepo repository.BroadcastSelectionRepository,
+	broadcastDraftRepo repository.BroadcastDraftRepository,
 	bot *maxbot.Api,
 ) Service {
 
@@ -84,17 +89,18 @@ func NewModerationService(
 	pm := pipeline.NewManager(rateLimitFilter, muteFilter, linkFilter, wordFilter, attachmentFilter)
 
 	return &ModerationService{
-		logger:          logger,
-		settingsRepo:    settingsRepo,
-		chatAdminRepo:   chatAdminRepo,
-		linkTokenRepo:   linkTokenRepo,
-		muteRepo:        muteRepo,
-		tempMessageRepo: tempMessageRepo,
-		violationRepo:   violationRepo,
-		broadcastRepo:   broadcastRepo,
-		pipeline:        pm,
-		tracer:          otel.Tracer("service"),
-		bot:             bot,
+		logger:             logger,
+		settingsRepo:       settingsRepo,
+		chatAdminRepo:      chatAdminRepo,
+		linkTokenRepo:      linkTokenRepo,
+		muteRepo:           muteRepo,
+		tempMessageRepo:    tempMessageRepo,
+		violationRepo:      violationRepo,
+		broadcastRepo:      broadcastRepo,
+		broadcastDraftRepo: broadcastDraftRepo,
+		pipeline:           pm,
+		tracer:             otel.Tracer("service"),
+		bot:                bot,
 	}
 }
 
@@ -514,4 +520,22 @@ func (s *ModerationService) ClearBroadcastSelections(ctx context.Context, userID
 	_, span := s.tracer.Start(ctx, "ClearBroadcastSelections")
 	defer span.End()
 	return s.broadcastRepo.Clear(userID)
+}
+
+func (s *ModerationService) SaveBroadcastDraft(ctx context.Context, userID int64, text string) error {
+	_, span := s.tracer.Start(ctx, "SaveBroadcastDraft")
+	defer span.End()
+	return s.broadcastDraftRepo.Save(userID, text)
+}
+
+func (s *ModerationService) GetBroadcastDraft(ctx context.Context, userID int64) (string, error) {
+	_, span := s.tracer.Start(ctx, "GetBroadcastDraft")
+	defer span.End()
+	return s.broadcastDraftRepo.Get(userID)
+}
+
+func (s *ModerationService) DeleteBroadcastDraft(ctx context.Context, userID int64) error {
+	_, span := s.tracer.Start(ctx, "DeleteBroadcastDraft")
+	defer span.End()
+	return s.broadcastDraftRepo.Delete(userID)
 }

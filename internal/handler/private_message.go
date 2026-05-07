@@ -269,7 +269,7 @@ func (h *Handler) sendTextWithBack(ctx context.Context, userID, chatID int64, te
 
 func (h *Handler) handleBroadcastSend(ctx context.Context, userID int64, text string) {
 	if err := h.userStateRepo.ClearState(userID); err != nil {
-		h.logger.Warn("Failed to clear state before broadcast send", "error", err)
+		h.logger.Warn("Failed to clear state before broadcast confirm", "error", err)
 	}
 
 	if strings.TrimSpace(text) == "" {
@@ -279,7 +279,7 @@ func (h *Handler) handleBroadcastSend(ctx context.Context, userID int64, text st
 
 	selections, err := h.svc.GetBroadcastSelections(ctx, userID)
 	if err != nil {
-		h.logger.Error("Failed to get selections for broadcast", "error", err)
+		h.logger.Error("Failed to get selections for broadcast confirm", "error", err)
 		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
 		return
 	}
@@ -290,19 +290,13 @@ func (h *Handler) handleBroadcastSend(ctx context.Context, userID int64, text st
 		return
 	}
 
-	sent, failed, err := h.svc.SendBroadcast(ctx, userID, selections, text)
-	if err != nil {
-		h.logger.Error("Broadcast failed", "error", err)
+	if err := h.svc.SaveBroadcastDraft(ctx, userID, text); err != nil {
+		h.logger.Error("Failed to save broadcast draft", "error", err)
 		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
 		return
 	}
 
-	if err := h.svc.ClearBroadcastSelections(ctx, userID); err != nil {
-		h.logger.Warn("Failed to clear broadcast selections after send", "error", err)
-	}
-
-	h.sendText(ctx, userID, fmt.Sprintf(messages.MsgBroadcastResult, sent, sent+failed))
-	h.sendMainMenu(ctx, userID)
+	h.callbackHandler.ShowBroadcastConfirm(ctx, userID, text, len(selections))
 }
 
 func parseWordsFile(scanner *bufio.Scanner) ([]string, int, error) {

@@ -220,3 +220,30 @@ func (m *MockBroadcastSelectionRepository) Clear(userID int64) error {
 	}
 	return nil
 }
+
+type MockBroadcastDraftRepository struct {
+	SaveFunc   func(userID int64, text string) error
+	GetFunc    func(userID int64) (string, error)
+	DeleteFunc func(userID int64) error
+}
+
+func (m *MockBroadcastDraftRepository) Save(userID int64, text string) error {
+	if m.SaveFunc != nil {
+		return m.SaveFunc(userID, text)
+	}
+	return nil
+}
+
+func (m *MockBroadcastDraftRepository) Get(userID int64) (string, error) {
+	if m.GetFunc != nil {
+		return m.GetFunc(userID)
+	}
+	return "", nil
+}
+
+func (m *MockBroadcastDraftRepository) Delete(userID int64) error {
+	if m.DeleteFunc != nil {
+		return m.DeleteFunc(userID)
+	}
+	return nil
+}

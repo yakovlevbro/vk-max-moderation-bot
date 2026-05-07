@@ -131,6 +131,84 @@ func (h *CallbackHandler) handleBroadcastClearAll(ctx context.Context, userID in
 	h.handleBroadcastMenu(ctx, userID, page)
 }
 
+func (h *CallbackHandler) ShowBroadcastConfirm(ctx context.Context, userID int64, text string, chatCount int) {
+	kb := h.bot.Messages.NewKeyboardBuilder()
+	kb.AddRow().
+		AddCallback(messages.BtnBroadcastConfirmSend, schemes.POSITIVE, "broadcast_confirm_send").
+		AddCallback(messages.BtnBroadcastConfirmEdit, schemes.DEFAULT, "broadcast_confirm_edit")
+
+	msg := maxbot.NewMessage()
+	msg.SetUser(userID)
+	msg.SetText(fmt.Sprintf(messages.MsgBroadcastConfirm, chatCount, text))
+	msg.SetFormat("markdown")
+	msg.AddKeyboard(kb)
+	if err := h.bot.Messages.Send(ctx, msg); err != nil {
+		h.logger.Error("Failed to send broadcast confirm", "error", err)
+	}
+}
+
+func (h *CallbackHandler) handleBroadcastConfirmSend(ctx context.Context, userID int64) {
+	text, err := h.svc.GetBroadcastDraft(ctx, userID)
+	if err != nil {
+		h.logger.Error("Failed to get broadcast draft", "error", err)
+		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
+		return
+	}
+
+	selections, err := h.svc.GetBroadcastSelections(ctx, userID)
+	if err != nil {
+		h.logger.Error("Failed to get selections for broadcast send", "error", err)
+		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
+		return
+	}
+
+	if len(selections) == 0 {
+		h.sendText(ctx, userID, messages.MsgBroadcastNoChatsSelected)
+		h.handleBroadcastMenu(ctx, userID, 1)
+		return
+	}
+
+	sent, failed, err := h.svc.SendBroadcast(ctx, userID, selections, text)
+	if err != nil {
+		h.logger.Error("Broadcast send failed", "error", err)
+		h.sendText(ctx, userID, messages.MsgSettingsUpdateFailed)
+		return
+	}
+
+	_ = h.svc.DeleteBroadcastDraft(ctx, userID)
+	_ = h.svc.ClearBroadcastSelections(ctx, userID)
+
+	h.sendText(ctx, userID, fmt.Sprintf(messages.MsgBroadcastResult, sent, sent+failed))
+	h.sendMainMenu(ctx, userID)
+}
+
+func (h *CallbackHandler) handleBroadcastConfirmEdit(ctx context.Context, userID int64) {
+	_ = h.svc.DeleteBroadcastDraft(ctx, userID)
+
+	selections, err := h.svc.GetBroadcastSelections(ctx, userID)
+	if err != nil {
+		h.logger.Error("Failed to get selections for confirm edit", "error", err)
+		return
+	}
+
+	if err := h.userStateRepo.SetState(userID, 0, "broadcast_text"); err != nil {
+		h.logger.Error("Failed to set broadcast_text state for edit", "error", err)
+		return
+	}
+
+	kb := h.bot.Messages.NewKeyboardBuilder()
+	kb.AddRow().AddCallback(messages.BtnBack, schemes.DEFAULT, "broadcast_menu")
+
+	msg := maxbot.NewMessage()
+	msg.SetUser(userID)
+	msg.SetText(fmt.Sprintf(messages.MsgBroadcastPromptText, len(selections)))
+	msg.SetFormat("markdown")
+	msg.AddKeyboard(kb)
+	if err := h.bot.Messages.Send(ctx, msg); err != nil {
+		h.logger.Error("Failed to send broadcast edit prompt", "error", err)
+	}
+}
+
 func (h *CallbackHandler) handleBroadcastPrompt(ctx context.Context, userID int64) {
 	selections, err := h.svc.GetBroadcastSelections(ctx, userID)
 	if err != nil {

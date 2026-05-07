@@ -80,4 +80,7 @@ const (
 	MsgBroadcastResult          = "✅ Рассылка завершена: отправлено **%d** из **%d** чатов."
 	MsgBroadcastEmptyText       = "⚠️ Текст рассылки не может быть пустым. Попробуйте ещё раз."
 	MsgBroadcastNoChatsSelected = "⚠️ Не выбрано ни одного чата. Выберите чаты для рассылки."
+	MsgBroadcastConfirm         = "📢 Подтверждение рассылки для **%d** чатов:\n\n%s"
+	BtnBroadcastConfirmSend     = "✅ Отправить"
+	BtnBroadcastConfirmEdit     = "✏️ Изменить текст"
 )

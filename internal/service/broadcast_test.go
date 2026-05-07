@@ -62,7 +62,7 @@ func TestModerationService_GetBroadcastSelections(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			broadcastRepo := tt.setupMock()
-			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil)
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil, nil)
 
 			got, err := svc.GetBroadcastSelections(context.Background(), tt.userID)
 			if (err != nil) != tt.wantErr {
@@ -134,7 +134,7 @@ func TestModerationService_ToggleBroadcastSelection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			broadcastRepo := tt.setupMock()
-			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil)
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil, nil)
 
 			got, err := svc.ToggleBroadcastSelection(context.Background(), tt.userID, tt.chatID)
 			if (err != nil) != tt.wantErr {
@@ -186,7 +186,7 @@ func TestModerationService_ClearBroadcastSelections(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			broadcastRepo := tt.setupMock()
-			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil)
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil, nil)
 
 			err := svc.ClearBroadcastSelections(context.Background(), tt.userID)
 			if (err != nil) != tt.wantErr {
@@ -262,11 +262,164 @@ func TestModerationService_SelectAllChatsForBroadcast(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			adminRepo, broadcastRepo := tt.setupMocks()
-			svc := NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil)
+			svc := NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, broadcastRepo, nil, nil)
 
 			err := svc.SelectAllChatsForBroadcast(context.Background(), tt.userID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectAllChatsForBroadcast() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestModerationService_SaveBroadcastDraft(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	tests := []struct {
+		name      string
+		userID    int64
+		text      string
+		setupMock func() *MockBroadcastDraftRepository
+		wantErr   bool
+	}{
+		{
+			name:   "Success",
+			userID: 1,
+			text:   "Hello chats!",
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					SaveFunc: func(userID int64, text string) error {
+						if text != "Hello chats!" {
+							t.Errorf("expected text 'Hello chats!', got '%s'", text)
+						}
+						return nil
+					},
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Repo error",
+			userID: 1,
+			text:   "Hello",
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					SaveFunc: func(userID int64, text string) error {
+						return errors.New("db error")
+					},
+				}
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			draftRepo := tt.setupMock()
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, nil, draftRepo, nil)
+
+			err := svc.SaveBroadcastDraft(context.Background(), tt.userID, tt.text)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SaveBroadcastDraft() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestModerationService_GetBroadcastDraft(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	tests := []struct {
+		name      string
+		userID    int64
+		setupMock func() *MockBroadcastDraftRepository
+		wantText  string
+		wantErr   bool
+	}{
+		{
+			name:   "Returns draft",
+			userID: 1,
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					GetFunc: func(userID int64) (string, error) {
+						return "Saved draft text", nil
+					},
+				}
+			},
+			wantText: "Saved draft text",
+			wantErr:  false,
+		},
+		{
+			name:   "Repo error",
+			userID: 1,
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					GetFunc: func(userID int64) (string, error) {
+						return "", errors.New("not found")
+					},
+				}
+			},
+			wantText: "",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			draftRepo := tt.setupMock()
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, nil, draftRepo, nil)
+
+			got, err := svc.GetBroadcastDraft(context.Background(), tt.userID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBroadcastDraft() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.wantText {
+				t.Errorf("GetBroadcastDraft() = %v, want %v", got, tt.wantText)
+			}
+		})
+	}
+}
+
+func TestModerationService_DeleteBroadcastDraft(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	tests := []struct {
+		name      string
+		userID    int64
+		setupMock func() *MockBroadcastDraftRepository
+		wantErr   bool
+	}{
+		{
+			name:   "Success",
+			userID: 1,
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					DeleteFunc: func(userID int64) error { return nil },
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Repo error",
+			userID: 1,
+			setupMock: func() *MockBroadcastDraftRepository {
+				return &MockBroadcastDraftRepository{
+					DeleteFunc: func(userID int64) error { return errors.New("db error") },
+				}
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			draftRepo := tt.setupMock()
+			svc := NewModerationService(logger, nil, nil, nil, nil, nil, &MockViolationRepository{}, nil, draftRepo, nil)
+
+			err := svc.DeleteBroadcastDraft(context.Background(), tt.userID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteBroadcastDraft() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -331,9 +484,9 @@ func TestModerationService_SendBroadcast(t *testing.T) {
 
 			var svc Service
 			if tt.name == "Bot not initialized" {
-				svc = NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, nil, nil)
+				svc = NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, nil, nil, nil)
 			} else {
-				svc = NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, nil, nil)
+				svc = NewModerationService(logger, nil, adminRepo, nil, nil, nil, &MockViolationRepository{}, nil, nil, nil)
 			}
 
 			sent, failed, err := svc.SendBroadcast(context.Background(), tt.userID, tt.chatIDs, tt.text)

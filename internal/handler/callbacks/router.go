@@ -118,6 +118,10 @@ func (h *CallbackHandler) Handle(ctx context.Context, upd *schemes.MessageCallba
 		}
 	case payload == "broadcast_prompt":
 		h.handleBroadcastPrompt(ctx, upd.Callback.User.UserId)
+	case payload == "broadcast_confirm_send":
+		h.handleBroadcastConfirmSend(ctx, upd.Callback.User.UserId)
+	case payload == "broadcast_confirm_edit":
+		h.handleBroadcastConfirmEdit(ctx, upd.Callback.User.UserId)
 	default:
 		h.logger.Warn("Unknown callback payload", "payload", payload)
 	}

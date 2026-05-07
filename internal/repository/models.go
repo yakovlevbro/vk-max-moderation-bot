@@ -64,3 +64,9 @@ type BroadcastSelection struct {
 	ChatID    int64     `gorm:"primaryKey;autoIncrement:false"`
 	CreatedAt time.Time
 }
+
+type BroadcastDraft struct {
+	UserID    int64     `gorm:"primaryKey;autoIncrement:false"`
+	Text      string    `gorm:"type:text"`
+	CreatedAt time.Time
+}
